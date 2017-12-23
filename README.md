@@ -10,11 +10,7 @@ The one of them is using java.text.*Format classes in multithreaded environment.
 
 ### Idea
 
-Because all client code of our factory get predefined formatters and using them only for parse/format operations by design. All we need is make execution of these operations threadsafe. In this case we can do the next: during our factory initialization process put in it predefined formatter wrapped by proxy class which overrides parseand format operations and redirect them to thredlocal clone of original formatter. In most cases that's enough.
-
-### Restrictions
-
-We can not prevent client code from changing valuable properties of our formatters in different ways. In this case all threads will work correctly with latest version formatter, it may lead to unexpected formatting results. But original design has the same problem.
+Because all client code of our factory get predefined formatters and using them only for parse/format operations by design. All we need is make execution of these operations threadsafe. In this case we can do the next: during our factory initialization process put in it predefined formatter wrapped by proxy class which overrides parse and format operations and redirect them to thredlocal clone of original formatter. In most cases that's enough.
 
 ### Usage
 ```java
@@ -32,3 +28,30 @@ Thread thread = new Thread(new MyRunnable(safeFormatter) {
 ...
 
 ```
+
+### Restrictions
+
+We can not prevent client code from changing valuable properties of our formatters in different ways. In this case all threads will work correctly with latest version formatter, it may lead to unexpected formatting results. But original design has the same problem.
+
+If you really need to prevent formatter properties from unexpected changes your can use "safeLocked" factory to produce threadsafe formatter which does not allow to change his properties after locking:
+
+```java
+import static hanky.text.ThreadSafeProxyFactory.safe;
+...
+SimpleDateFormat safeFormatter = safeLocked(new SimpleDateFormat(DD_MM_YYYY), true);
+// or
+SimpleDateFormat safeFormatter = safeLocked(new SimpleDateFormat(DD_MM_YYYY), false);
+// and when all settings is done
+if (safeFormatter instanceof ThreadSafeProxyFactory.Final) ((ThreadSafeProxyFactory.Final) safeFormatter).lockSettings();
+...
+Thread thread = new Thread(new MyRunnable(safeFormatter) {
+	@Override
+	public void run() {
+		// Safe code
+		String formatted = safeFormatter.format(...);
+	}
+});
+...
+
+```
+

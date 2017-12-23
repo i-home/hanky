@@ -71,6 +71,7 @@ public class ThreadSafeProxyFactory {
 				String name = method.getName();
 				if (name.equals(LOCK_SETTINGS_METHOD_NAME)) {
 					version.set(LOCKED);
+					return null;
 				} else if (name.startsWith(SETTER_PREFFIX)) {
 					if (version.get() != LOCKED) {
 						if (version.incrementAndGet() < LOCKED)

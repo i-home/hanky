@@ -87,6 +87,22 @@ class ThreadSafeProxyFactoryTest extends ConcurrentTestCase {
 	}
 
 	@Test
+	@DisplayName("Test safeLocked by method SimpleDateFormat")
+	void testSafeLockedByMethodSimpleDateFormat() throws TimeoutException, InterruptedException, ExecutionException {
+		testSafeLockedByMethod(new SimpleDateFormat(DD_MM_YYYY), new Supplier<Date>() {
+			@Override
+			public Date get() {
+				return new Date();
+			}
+		}, new Consumer<SimpleDateFormat>() {
+			@Override
+			public void accept(SimpleDateFormat format) {
+				format.setNumberFormat(new DecimalFormat("#,##0.00"));
+			}
+		});
+	}
+
+	@Test
 	@DisplayName("Test weak DecimalFormat")
 	void testWeakDecimalFormat() throws TimeoutException {
 		testWeak(new DecimalFormat("#,##0.00"), new Supplier<Double>() {
@@ -128,6 +144,22 @@ class ThreadSafeProxyFactoryTest extends ConcurrentTestCase {
 	@DisplayName("Test safeLocked DecimalFormat")
 	void testSafeLockedDecimalFormat() throws TimeoutException, InterruptedException, ExecutionException {
 		testSafeLocked(new DecimalFormat("#,##0.00"), new Supplier<Double>() {
+			@Override
+			public Double get() {
+				return 1234.56;
+			}
+		}, new Consumer<DecimalFormat>() {
+			@Override
+			public void accept(DecimalFormat format) {
+				format.setGroupingSize(2);
+			}
+		});
+	}
+
+	@Test
+	@DisplayName("Test safeLocked by method DecimalFormat")
+	void testSafeLockedByMethodDecimalFormat() throws TimeoutException, InterruptedException, ExecutionException {
+		testSafeLockedByMethod(new DecimalFormat("#,##0.00"), new Supplier<Double>() {
 			@Override
 			public Double get() {
 				return 1234.56;
@@ -230,6 +262,33 @@ class ThreadSafeProxyFactoryTest extends ConcurrentTestCase {
 	<T extends Format, D extends Object> void testSafeLocked(final T weak, final Supplier<D> factory,
 			final Consumer<T> modifier) throws TimeoutException, InterruptedException, ExecutionException {
 		final T wrapped = safeLocked(weak, true);
+		ExecutorService pool = Executors.newFixedThreadPool(NUM_OF_THREADS);
+		List<Future<?>> q = new ArrayList<Future<?>>();
+		for (int i = 0; i < NUM_OF_THREADS * 1000; i++) {
+			q.add(pool.submit(new Runnable() {
+				@Override
+				public void run() {
+					String first = wrapped.format(factory.get());
+					modifier.accept(wrapped);
+					try {
+						String second = wrapped.format(wrapped.parseObject(wrapped.format(factory.get())));
+						if (!first.equals(second))
+							threadFail(MessageFormat.format("Got two different formatted values {0} <=> {1}", first,
+									second));
+					} catch (ParseException e) {
+						threadFail(e);
+					}
+				}
+			}));
+		}
+		for (Future<?> f : q)
+			f.get();
+	}
+
+	<T extends Format, D extends Object> void testSafeLockedByMethod(final T weak, final Supplier<D> factory,
+			final Consumer<T> modifier) throws TimeoutException, InterruptedException, ExecutionException {
+		final T wrapped = safeLocked(weak, false);
+		if (wrapped instanceof ThreadSafeProxyFactory.Final) ((ThreadSafeProxyFactory.Final) wrapped).lockSettings();
 		ExecutorService pool = Executors.newFixedThreadPool(NUM_OF_THREADS);
 		List<Future<?>> q = new ArrayList<Future<?>>();
 		for (int i = 0; i < NUM_OF_THREADS * 1000; i++) {
