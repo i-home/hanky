@@ -15,3 +15,20 @@ Because all client code of our factory get predefined formatters and using them 
 ### Restrictions
 
 We can not prevent client code from changing valuable properties of our formatters in different ways. In this case all threads will work correctly with latest version formatter, it may lead to unexpected formatting results. But original design has the same problem.
+
+### Usage
+```java
+import static hanky.text.ThreadSafeProxyFactory.safe;
+...
+SimpleDateFormat safeFormatter = safe(new SimpleDateFormat(DD_MM_YYYY));
+...
+Thread thread = new Thread(new MyRunnable(safeFormatter) {
+	@Override
+	public void run() {
+		// Safe code
+		String formatted = safeFormatter.format(...);
+	}
+});
+...
+
+```
