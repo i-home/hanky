@@ -1,4 +1,4 @@
-# Hanky
+# Hanky (handkerchief)
 
 Hanky is an utility library for legacy projects which have variety range historical problems.
 
@@ -10,7 +10,7 @@ The one of them is using java.text.*Format classes in multithreaded environment.
 
 ### Idea
 
-Because all client code of our factory get predefined formatters and using them only for parse/format operations, by design. All we need is make execution of these operations threadsafe. In this case we can do the next: through our factory initialization process put in it predefined formatter wrapped by proxy class which overrides parseand format operations and redirect them to thredlocal clone of original formatter. In most cases that's enough.
+Because all client code of our factory get predefined formatters and using them only for parse/format operations by design. All we need is make execution of these operations threadsafe. In this case we can do the next: during our factory initialization process put in it predefined formatter wrapped by proxy class which overrides parseand format operations and redirect them to thredlocal clone of original formatter. In most cases that's enough.
 
 ### Restrictions
 
