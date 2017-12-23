@@ -1,7 +1,7 @@
 package hanky.text;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static hanky.text.ThreadSafeFormat.wrap;
+import static hanky.text.ThreadSafeProxyFactory.safe;
 
 import java.text.MessageFormat;
 import java.text.ParseException;
@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 
 import net.jodah.concurrentunit.ConcurrentTestCase;
 
-class ThreadSafeFormatTest extends ConcurrentTestCase {
+class ThreadSafeProxyFactoryTest extends ConcurrentTestCase {
 
 	private static final int NUM_OF_THREADS = 10;
 	private static final String DD_MM_YYYY = "dd.MM.yyyy";
@@ -53,9 +53,9 @@ class ThreadSafeFormatTest extends ConcurrentTestCase {
 	}
 
 	@Test
-	@DisplayName("Test wrapped formatter")
-	void testWrap() throws TimeoutException, InterruptedException, ExecutionException {
-		final SimpleDateFormat wrapped = wrap(new SimpleDateFormat(DD_MM_YYYY));
+	@DisplayName("Test safe formatter")
+	void testSafe() throws TimeoutException, InterruptedException, ExecutionException {
+		final SimpleDateFormat wrapped = safe(new SimpleDateFormat(DD_MM_YYYY));
 		ExecutorService pool = Executors.newFixedThreadPool(NUM_OF_THREADS);
 		List<Future<?>> q = new ArrayList<>();
 		for (int i = 0; i < NUM_OF_THREADS * 1000; i++) {

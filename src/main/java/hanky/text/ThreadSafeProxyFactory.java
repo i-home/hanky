@@ -8,14 +8,14 @@ import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 
-public class ThreadSafeFormat {
+public class ThreadSafeProxyFactory {
 
 	private static final String PARSE_METHOD_PREFIX = "parse";
 	private static final String FORMAT_METHOD_PREFIX = "format";
 	private static final String SETTER_PREFFIX = "set";
 
 	@SuppressWarnings("unchecked")
-	public static final <T extends Format> T wrap(final T weakFormatter) {
+	public static final <T extends Format> T safe(final T weakFormatter) {
 		Enhancer factory = new Enhancer();
 		factory.setSuperclass(weakFormatter.getClass());
 		factory.setCallback(new MethodInterceptor() {
