@@ -1,0 +1,31 @@
+@startuml
+== Initialization ==
+participant Factory
+actor Client
+Client-->Factory:use
+create Formatter
+Factory->Formatter:for instantiation
+Formatter->Client:got *Formatter reference
+activate Client
+actor Second
+actor Third
+note right of Formatter
+ Second and Third classes
+ have no idea about Factory
+ they got preinstantiated 
+ formatter from Client
+endnote
+Second<--Client:put *Formatter reference
+activate Second
+Third<--Client:put *Formatter reference
+activate Third
+... ~~some possible delay~~ ...
+== Concurrent Access ==
+group Here we have troubles
+Client->Formatter:use
+activate Formatter
+Second->Formatter:use
+Client->Formatter:use
+Third->Formatter:use
+end
+@enduml
