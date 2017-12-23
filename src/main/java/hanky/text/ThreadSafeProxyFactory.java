@@ -10,9 +10,16 @@ import net.sf.cglib.proxy.MethodProxy;
 
 public class ThreadSafeProxyFactory {
 
+	public interface Final {
+		void lockSettings();
+	}
+
+	private static final String LOCK_SETTINGS_METHOD_NAME = "lockSettings";
 	private static final String PARSE_METHOD_PREFIX = "parse";
 	private static final String FORMAT_METHOD_PREFIX = "format";
 	private static final String SETTER_PREFFIX = "set";
+	private static final long INITIAL_VERSION = 1l;
+	private static final long LOCKED = -1l;
 
 	@SuppressWarnings("unchecked")
 	public static final <T extends Format> T safe(final T weakFormatter) {
@@ -21,13 +28,57 @@ public class ThreadSafeProxyFactory {
 		factory.setCallback(new MethodInterceptor() {
 			private final ThreadLocal<T> insatnce = new ThreadLocal<T>();
 			private final ThreadLocal<Long> actual = new ThreadLocal<Long>();
-			private final AtomicLong version = new AtomicLong(1);
+			private final AtomicLong version = new AtomicLong(INITIAL_VERSION);
 
 			@Override
 			public Object intercept(Object arg0, Method method, Object[] args, MethodProxy mps) throws Throwable {
 				String name = method.getName();
 				if (name.startsWith(SETTER_PREFFIX)) {
 					version.incrementAndGet();
+				} else if (name.startsWith(FORMAT_METHOD_PREFIX) || name.startsWith(PARSE_METHOD_PREFIX)) {
+					Long ver = actual.get();
+					if (ver != null && ver.longValue() == version.get()) {
+						if (insatnce.get() == null) {
+							T clone = (T) weakFormatter.clone();
+							insatnce.set(clone);
+						}
+					} else {
+						actual.set(version.get());
+						T clone = (T) weakFormatter.clone();
+						insatnce.set(clone);
+					}
+					return method.invoke(insatnce.get(), args);
+				}
+				return method.invoke(weakFormatter, args);
+			}
+		});
+
+		return (T) factory.create();
+	}
+
+	@SuppressWarnings("unchecked")
+	public static final <T extends Format> T safeLocked(final T weakFormatter, final boolean locked) {
+		Enhancer factory = new Enhancer();
+		factory.setSuperclass(weakFormatter.getClass());
+		factory.setInterfaces(new Class[] { Final.class });
+		factory.setCallback(new MethodInterceptor() {
+			private final ThreadLocal<T> insatnce = new ThreadLocal<T>();
+			private final ThreadLocal<Long> actual = new ThreadLocal<Long>();
+			private final AtomicLong version = new AtomicLong(locked ? LOCKED : INITIAL_VERSION);
+
+			@Override
+			public Object intercept(Object arg0, Method method, Object[] args, MethodProxy mps) throws Throwable {
+				String name = method.getName();
+				if (name.equals(LOCK_SETTINGS_METHOD_NAME)) {
+					version.set(LOCKED);
+				} else if (name.startsWith(SETTER_PREFFIX)) {
+					if (version.get() != LOCKED) {
+						if (version.incrementAndGet() < LOCKED)
+							version.set(INITIAL_VERSION);
+						return method.invoke(weakFormatter, args);
+					} else {
+						return null;
+					}
 				} else if (name.startsWith(FORMAT_METHOD_PREFIX) || name.startsWith(PARSE_METHOD_PREFIX)) {
 					Long ver = actual.get();
 					if (ver != null && ver.longValue() == version.get()) {

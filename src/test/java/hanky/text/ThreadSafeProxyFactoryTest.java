@@ -1,8 +1,11 @@
 package hanky.text;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static hanky.text.ThreadSafeProxyFactory.safe;
+import static hanky.text.ThreadSafeProxyFactory.safeLocked;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.text.DecimalFormat;
+import java.text.Format;
 import java.text.MessageFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -14,9 +17,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import net.jodah.concurrentunit.ConcurrentTestCase;
 
@@ -26,47 +32,158 @@ class ThreadSafeProxyFactoryTest extends ConcurrentTestCase {
 	private static final String DD_MM_YYYY = "dd.MM.yyyy";
 
 	@Test
-	@DisplayName("Test weak formatter")
-	void testWeak() throws TimeoutException {
-		assertThrows(Exception.class, () -> {
-			final SimpleDateFormat weak = new SimpleDateFormat(DD_MM_YYYY);
-			ExecutorService pool = Executors.newFixedThreadPool(NUM_OF_THREADS);
-			List<Future<?>> q = new ArrayList<>();
-			for (int i = 0; i < NUM_OF_THREADS * 1000; i++) {
-				q.add(pool.submit(new Runnable() {
-					@Override
-					public void run() {
-						String first = weak.format(new Date());
-						try {
-							String second = weak.format(weak.parse(weak.format(new Date())));
-							if (!first.equals(second))
-								threadFail(MessageFormat.format("Got two different formatted dates {0} <=> {1}", first,
-										second));
-						} catch (ParseException | NumberFormatException e) {
-							threadFail(e);
-						}
-					}
-				}));
+	@DisplayName("Test weak SimpleDateFormat")
+	void testWeakSimpleDateFormat() throws TimeoutException {
+		testWeak(new SimpleDateFormat(DD_MM_YYYY), new Supplier<Date>() {
+			@Override
+			public Date get() {
+				return new Date();
 			}
-			for (Future<?> f : q) f.get();
 		});
 	}
 
 	@Test
-	@DisplayName("Test safe formatter")
-	void testSafe() throws TimeoutException, InterruptedException, ExecutionException {
-		final SimpleDateFormat wrapped = safe(new SimpleDateFormat(DD_MM_YYYY));
+	@DisplayName("Test safe SimpleDateFormat")
+	void testSafeSimpleDateFormat() throws TimeoutException, InterruptedException, ExecutionException {
+		testSafe(new SimpleDateFormat(DD_MM_YYYY), new Supplier<Date>() {
+			@Override
+			public Date get() {
+				return new Date();
+			}
+		});
+	}
+
+
+	@Test
+	@DisplayName("Test safeUnLocked SimpleDateFormat")
+	void testSafeUnLockedSimpleDateFormat() throws TimeoutException, InterruptedException, ExecutionException {
+		testSafeUnLocked(new SimpleDateFormat(DD_MM_YYYY), new Supplier<Date>() {
+			@Override
+			public Date get() {
+				return new Date();
+			}
+		}, new Consumer<SimpleDateFormat>() {
+			@Override
+			public void accept(SimpleDateFormat format) {
+				format.setNumberFormat(new DecimalFormat("#,##0.00"));
+			}
+		});
+	}
+
+	@Test
+	@DisplayName("Test safeLocked SimpleDateFormat")
+	void testSafeLockedSimpleDateFormat() throws TimeoutException, InterruptedException, ExecutionException {
+		testSafeLocked(new SimpleDateFormat(DD_MM_YYYY), new Supplier<Date>() {
+			@Override
+			public Date get() {
+				return new Date();
+			}
+		}, new Consumer<SimpleDateFormat>() {
+			@Override
+			public void accept(SimpleDateFormat format) {
+				format.setNumberFormat(new DecimalFormat("#,##0.00"));
+			}
+		});
+	}
+
+	@Test
+	@DisplayName("Test weak DecimalFormat")
+	void testWeakDecimalFormat() throws TimeoutException {
+		testWeak(new DecimalFormat("#,##0.00"), new Supplier<Double>() {
+			@Override
+			public Double get() {
+				return 1234.56;
+			}
+		});
+	}
+
+	@Test
+	@DisplayName("Test safe DecimalFormat")
+	void testSafeDecimalFormat() throws TimeoutException, InterruptedException, ExecutionException {
+		testSafe(new DecimalFormat("#,##0.00"), new Supplier<Double>() {
+			@Override
+			public Double get() {
+				return 1234.56;
+			}
+		});
+	}
+
+	@Test
+	@DisplayName("Test safeUnLocked DecimalFormat")
+	void testSafeUnLockedDecimalFormat() throws TimeoutException, InterruptedException, ExecutionException {
+		testSafeUnLocked(new DecimalFormat("#,##0.00"), new Supplier<Double>() {
+			@Override
+			public Double get() {
+				return 1234.56;
+			}
+		}, new Consumer<DecimalFormat>() {
+			@Override
+			public void accept(DecimalFormat format) {
+				format.setGroupingSize(2);
+			}
+		});
+	}
+
+	@Test
+	@DisplayName("Test safeLocked DecimalFormat")
+	void testSafeLockedDecimalFormat() throws TimeoutException, InterruptedException, ExecutionException {
+		testSafeLocked(new DecimalFormat("#,##0.00"), new Supplier<Double>() {
+			@Override
+			public Double get() {
+				return 1234.56;
+			}
+		}, new Consumer<DecimalFormat>() {
+			@Override
+			public void accept(DecimalFormat format) {
+				format.setGroupingSize(2);
+			}
+		});
+	}
+
+	<T extends Format, D extends Object> void testWeak(final T weak, final Supplier<D> factory)
+			throws TimeoutException {
+		assertThrows(Exception.class, new Executable() {
+
+			@Override
+			public void execute() throws Throwable {
+				ExecutorService pool = Executors.newFixedThreadPool(NUM_OF_THREADS);
+				List<Future<?>> q = new ArrayList<Future<?>>();
+				for (int i = 0; i < NUM_OF_THREADS * 1000; i++) {
+					q.add(pool.submit(new Runnable() {
+						@Override
+						public void run() {
+							String first = weak.format(factory.get());
+							try {
+								String second = weak.format(weak.parseObject(weak.format(factory.get())));
+								if (!first.equals(second))
+									threadFail(MessageFormat.format("Got two different formatted values {0} <=> {1}",
+											first, second));
+							} catch (Exception e) {
+								threadFail(e);
+							}
+						}
+					}));
+				}
+				for (Future<?> f : q)
+					f.get();
+			}
+		});
+	}
+
+	<T extends Format, D extends Object> void testSafe(final T weak, final Supplier<D> factory)
+			throws TimeoutException, InterruptedException, ExecutionException {
+		final T wrapped = safe(weak);
 		ExecutorService pool = Executors.newFixedThreadPool(NUM_OF_THREADS);
-		List<Future<?>> q = new ArrayList<>();
+		List<Future<?>> q = new ArrayList<Future<?>>();
 		for (int i = 0; i < NUM_OF_THREADS * 1000; i++) {
 			q.add(pool.submit(new Runnable() {
 				@Override
 				public void run() {
-					String first = wrapped.format(new Date());
+					String first = wrapped.format(factory.get());
 					try {
-						String second = wrapped.format(wrapped.parse(wrapped.format(new Date())));
+						String second = wrapped.format(wrapped.parseObject(wrapped.format(factory.get())));
 						if (!first.equals(second))
-							threadFail(MessageFormat.format("Got two different formatted dates {0} <=> {1}", first,
+							threadFail(MessageFormat.format("Got two different formatted values {0} <=> {1}", first,
 									second));
 					} catch (ParseException e) {
 						threadFail(e);
@@ -74,6 +191,65 @@ class ThreadSafeProxyFactoryTest extends ConcurrentTestCase {
 				}
 			}));
 		}
-		for (Future<?> f : q) f.get();
+		for (Future<?> f : q)
+			f.get();
+	}
+
+	<T extends Format, D extends Object> void testSafeUnLocked(final T weak, final Supplier<D> factory,
+			final Consumer<T> modifier) throws TimeoutException, InterruptedException, ExecutionException {
+		assertThrows(Exception.class, new Executable() {
+
+			@Override
+			public void execute() throws Throwable {
+				final T wrapped = safe(weak);
+				ExecutorService pool = Executors.newFixedThreadPool(NUM_OF_THREADS);
+				List<Future<?>> q = new ArrayList<Future<?>>();
+				for (int i = 0; i < NUM_OF_THREADS * 1000; i++) {
+					q.add(pool.submit(new Runnable() {
+						@Override
+						public void run() {
+							String first = wrapped.format(factory.get());
+							modifier.accept(wrapped);
+							try {
+								String second = wrapped.format(wrapped.parseObject(wrapped.format(factory.get())));
+								if (!first.equals(second))
+									threadFail(MessageFormat.format("Got two different formatted values {0} <=> {1}",
+											first, second));
+							} catch (ParseException e) {
+								threadFail(e);
+							}
+						}
+					}));
+				}
+				for (Future<?> f : q)
+					f.get();
+			}
+		});
+	}
+
+	<T extends Format, D extends Object> void testSafeLocked(final T weak, final Supplier<D> factory,
+			final Consumer<T> modifier) throws TimeoutException, InterruptedException, ExecutionException {
+		final T wrapped = safeLocked(weak, true);
+		ExecutorService pool = Executors.newFixedThreadPool(NUM_OF_THREADS);
+		List<Future<?>> q = new ArrayList<Future<?>>();
+		for (int i = 0; i < NUM_OF_THREADS * 1000; i++) {
+			q.add(pool.submit(new Runnable() {
+				@Override
+				public void run() {
+					String first = wrapped.format(factory.get());
+					modifier.accept(wrapped);
+					try {
+						String second = wrapped.format(wrapped.parseObject(wrapped.format(factory.get())));
+						if (!first.equals(second))
+							threadFail(MessageFormat.format("Got two different formatted values {0} <=> {1}", first,
+									second));
+					} catch (ParseException e) {
+						threadFail(e);
+					}
+				}
+			}));
+		}
+		for (Future<?> f : q)
+			f.get();
 	}
 }
