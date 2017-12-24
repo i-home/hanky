@@ -25,43 +25,22 @@ public class ThreadSafeProxyFactory {
 	public static final <T extends Format> T safe(final T weakFormatter) {
 		Enhancer factory = new Enhancer();
 		factory.setSuperclass(weakFormatter.getClass());
-		factory.setCallback(new MethodInterceptor() {
-			private final ThreadLocal<T> insatnce = new ThreadLocal<T>();
-			private final ThreadLocal<Long> actual = new ThreadLocal<Long>();
-			private final AtomicLong version = new AtomicLong(INITIAL_VERSION);
-
-			@Override
-			public Object intercept(Object arg0, Method method, Object[] args, MethodProxy mps) throws Throwable {
-				String name = method.getName();
-				if (name.startsWith(SETTER_PREFFIX)) {
-					version.incrementAndGet();
-				} else if (name.startsWith(FORMAT_METHOD_PREFIX) || name.startsWith(PARSE_METHOD_PREFIX)) {
-					Long ver = actual.get();
-					if (ver != null && ver.longValue() == version.get()) {
-						if (insatnce.get() == null) {
-							T clone = (T) weakFormatter.clone();
-							insatnce.set(clone);
-						}
-					} else {
-						actual.set(version.get());
-						T clone = (T) weakFormatter.clone();
-						insatnce.set(clone);
-					}
-					return method.invoke(insatnce.get(), args);
-				}
-				return method.invoke(weakFormatter, args);
-			}
-		});
-
+		factory.setCallback(getCallback(weakFormatter, false));
 		return (T) factory.create();
 	}
 
 	@SuppressWarnings("unchecked")
-	public static final <T extends Format> T safeLocked(final T weakFormatter, final boolean locked) {
+	public static final <T extends Format> T safe(final T weakFormatter, final boolean locked) {
 		Enhancer factory = new Enhancer();
 		factory.setSuperclass(weakFormatter.getClass());
+		factory.setCallback(getCallback(weakFormatter, locked));
 		factory.setInterfaces(new Class[] { Final.class });
-		factory.setCallback(new MethodInterceptor() {
+		return (T) factory.create();
+	}
+
+	@SuppressWarnings("unchecked")
+	protected static <T extends Format> MethodInterceptor getCallback(final T weakFormatter, final boolean locked) {
+		return new MethodInterceptor() {
 			private final ThreadLocal<T> insatnce = new ThreadLocal<T>();
 			private final ThreadLocal<Long> actual = new ThreadLocal<Long>();
 			private final AtomicLong version = new AtomicLong(locked ? LOCKED : INITIAL_VERSION);
@@ -96,8 +75,6 @@ public class ThreadSafeProxyFactory {
 				}
 				return method.invoke(weakFormatter, args);
 			}
-		});
-
-		return (T) factory.create();
+		};
 	}
 }

@@ -1,7 +1,6 @@
 package hanky.text;
 
 import static hanky.text.ThreadSafeProxyFactory.safe;
-import static hanky.text.ThreadSafeProxyFactory.safeLocked;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.text.DecimalFormat;
@@ -52,7 +51,6 @@ class ThreadSafeProxyFactoryTest extends ConcurrentTestCase {
 			}
 		});
 	}
-
 
 	@Test
 	@DisplayName("Test safeUnLocked SimpleDateFormat")
@@ -178,26 +176,7 @@ class ThreadSafeProxyFactoryTest extends ConcurrentTestCase {
 
 			@Override
 			public void execute() throws Throwable {
-				ExecutorService pool = Executors.newFixedThreadPool(NUM_OF_THREADS);
-				List<Future<?>> q = new ArrayList<Future<?>>();
-				for (int i = 0; i < NUM_OF_THREADS * 1000; i++) {
-					q.add(pool.submit(new Runnable() {
-						@Override
-						public void run() {
-							String first = weak.format(factory.get());
-							try {
-								String second = weak.format(weak.parseObject(weak.format(factory.get())));
-								if (!first.equals(second))
-									threadFail(MessageFormat.format("Got two different formatted values {0} <=> {1}",
-											first, second));
-							} catch (Exception e) {
-								threadFail(e);
-							}
-						}
-					}));
-				}
-				for (Future<?> f : q)
-					f.get();
+				executeTest(factory, null, weak);
 			}
 		});
 	}
@@ -205,26 +184,7 @@ class ThreadSafeProxyFactoryTest extends ConcurrentTestCase {
 	<T extends Format, D extends Object> void testSafe(final T weak, final Supplier<D> factory)
 			throws TimeoutException, InterruptedException, ExecutionException {
 		final T wrapped = safe(weak);
-		ExecutorService pool = Executors.newFixedThreadPool(NUM_OF_THREADS);
-		List<Future<?>> q = new ArrayList<Future<?>>();
-		for (int i = 0; i < NUM_OF_THREADS * 1000; i++) {
-			q.add(pool.submit(new Runnable() {
-				@Override
-				public void run() {
-					String first = wrapped.format(factory.get());
-					try {
-						String second = wrapped.format(wrapped.parseObject(wrapped.format(factory.get())));
-						if (!first.equals(second))
-							threadFail(MessageFormat.format("Got two different formatted values {0} <=> {1}", first,
-									second));
-					} catch (ParseException e) {
-						threadFail(e);
-					}
-				}
-			}));
-		}
-		for (Future<?> f : q)
-			f.get();
+		executeTest(factory, null, wrapped);
 	}
 
 	<T extends Format, D extends Object> void testSafeUnLocked(final T weak, final Supplier<D> factory,
@@ -234,71 +194,38 @@ class ThreadSafeProxyFactoryTest extends ConcurrentTestCase {
 			@Override
 			public void execute() throws Throwable {
 				final T wrapped = safe(weak);
-				ExecutorService pool = Executors.newFixedThreadPool(NUM_OF_THREADS);
-				List<Future<?>> q = new ArrayList<Future<?>>();
-				for (int i = 0; i < NUM_OF_THREADS * 1000; i++) {
-					q.add(pool.submit(new Runnable() {
-						@Override
-						public void run() {
-							String first = wrapped.format(factory.get());
-							modifier.accept(wrapped);
-							try {
-								String second = wrapped.format(wrapped.parseObject(wrapped.format(factory.get())));
-								if (!first.equals(second))
-									threadFail(MessageFormat.format("Got two different formatted values {0} <=> {1}",
-											first, second));
-							} catch (ParseException e) {
-								threadFail(e);
-							}
-						}
-					}));
-				}
-				for (Future<?> f : q)
-					f.get();
+				executeTest(factory, modifier, wrapped);
 			}
 		});
 	}
 
 	<T extends Format, D extends Object> void testSafeLocked(final T weak, final Supplier<D> factory,
 			final Consumer<T> modifier) throws TimeoutException, InterruptedException, ExecutionException {
-		final T wrapped = safeLocked(weak, true);
-		ExecutorService pool = Executors.newFixedThreadPool(NUM_OF_THREADS);
-		List<Future<?>> q = new ArrayList<Future<?>>();
-		for (int i = 0; i < NUM_OF_THREADS * 1000; i++) {
-			q.add(pool.submit(new Runnable() {
-				@Override
-				public void run() {
-					String first = wrapped.format(factory.get());
-					modifier.accept(wrapped);
-					try {
-						String second = wrapped.format(wrapped.parseObject(wrapped.format(factory.get())));
-						if (!first.equals(second))
-							threadFail(MessageFormat.format("Got two different formatted values {0} <=> {1}", first,
-									second));
-					} catch (ParseException e) {
-						threadFail(e);
-					}
-				}
-			}));
-		}
-		for (Future<?> f : q)
-			f.get();
+		final T wrapped = safe(weak, true);
+		executeTest(factory, modifier, wrapped);
 	}
 
 	<T extends Format, D extends Object> void testSafeLockedByMethod(final T weak, final Supplier<D> factory,
 			final Consumer<T> modifier) throws TimeoutException, InterruptedException, ExecutionException {
-		final T wrapped = safeLocked(weak, false);
-		if (wrapped instanceof ThreadSafeProxyFactory.Final) ((ThreadSafeProxyFactory.Final) wrapped).lockSettings();
+		final T wrapped = safe(weak, false);
+		if (wrapped instanceof ThreadSafeProxyFactory.Final)
+			((ThreadSafeProxyFactory.Final) wrapped).lockSettings();
+		executeTest(factory, modifier, wrapped);
+	}
+
+	protected <T extends Format, D> void executeTest(final Supplier<D> producer, final Consumer<T> modifier,
+			final T formatter) throws InterruptedException, ExecutionException {
 		ExecutorService pool = Executors.newFixedThreadPool(NUM_OF_THREADS);
 		List<Future<?>> q = new ArrayList<Future<?>>();
 		for (int i = 0; i < NUM_OF_THREADS * 1000; i++) {
 			q.add(pool.submit(new Runnable() {
 				@Override
 				public void run() {
-					String first = wrapped.format(factory.get());
-					modifier.accept(wrapped);
+					String first = formatter.format(producer.get());
+					if (modifier != null)
+						modifier.accept(formatter);
 					try {
-						String second = wrapped.format(wrapped.parseObject(wrapped.format(factory.get())));
+						String second = formatter.format(formatter.parseObject(formatter.format(producer.get())));
 						if (!first.equals(second))
 							threadFail(MessageFormat.format("Got two different formatted values {0} <=> {1}", first,
 									second));
