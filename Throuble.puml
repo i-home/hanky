@@ -3,12 +3,14 @@ skinparam sequence {
 	GroupBackgroundColor #ff8888
 }
 == Initialization ==
+box "Main thread" #ffcccc
 participant Factory
 actor Client #red
 Client-->Factory:use
 create Formatter
 Factory->Formatter:for instantiation
 Formatter->Client:got *Formatter reference
+end box
 activate Client
 box "Another threads" #lightblue
 actor Second #lightgreen
