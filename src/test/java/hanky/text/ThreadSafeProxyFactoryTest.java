@@ -26,7 +26,7 @@ import org.junit.jupiter.api.function.Executable;
 import net.jodah.concurrentunit.ConcurrentTestCase;
 
 /**
- * @author i-home
+ * @author i-home aka Silver mr.kmets@gmail.com
  *
  */
 public class ThreadSafeProxyFactoryTest extends ConcurrentTestCase {

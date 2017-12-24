@@ -9,14 +9,14 @@ import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 
 /**
- * @author i-home
+ * @author i-home aka Silver mr.kmets@gmail.com
  *
  */
 public class ThreadSafeProxyFactory {
 
 	/**
 	 * threadsafe formatter implements this interface
-	 * if it can be locked from changes
+	 * when it can be locked from changes
 	 */
 	public interface Final {
 		/**
