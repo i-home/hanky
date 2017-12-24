@@ -7,7 +7,7 @@ Hanky is an utility library for legacy projects which have variety range histori
 At my work we have a big legacy java project, and we can not control its whole code base. It has a bunch of problems with design, performance, and multithreading.
 
 The one of them is using java.text.*Format classes in multithreaded environment. There is a global formatters factory in the main library, which creates many preinstantiated formatters and promote them to any involved classes. I believe the main idea was as fast as possible give predefined formatter to any interested procedures, not to crash execution logic, but we have what we have. Some classes promote given formatter to engaged classes and put them in different threads, and do it in many different places in many libraries, and code of some of them we can not control.
-![figure 1](http://www.plantuml.com/plantuml/proxy?v=3&src=https://raw.githubusercontent.com/i-home/hanky/master/Throuble.puml)
+![figure 1](http://www.plantuml.com/plantuml/proxy?c=3&src=https://raw.githubusercontent.com/i-home/hanky/master/Throuble.puml)
 
 
 ### Idea
