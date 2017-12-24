@@ -9,7 +9,7 @@ actor Client #red
 Client-->Factory:use
 create Formatter
 Factory->Formatter:for instantiation
-Formatter->Client:got *Formatter reference
+Factory->Client:got *Formatter reference
 end box
 activate Client
 box "Another threads" #lightblue
@@ -18,7 +18,7 @@ actor Third #lightgreen
 end box
 note over Second, Third
  Second and Third classes
- have no idea about Factory
+ have no idea about the Factory,
  they got preinstantiated 
  formatter from Client
 endnote
@@ -26,7 +26,7 @@ Second<--Client:put *Formatter reference
 activate Second
 Third<--Client:put *Formatter reference
 activate Third
-... ~~some possible delay~~ ...
+... ~~ ~~ ...
 == Concurrent Access ==
 group Here we have troubles
 Client -[#red]> Formatter:parse()
