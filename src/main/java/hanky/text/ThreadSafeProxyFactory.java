@@ -8,9 +8,20 @@ import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 
+/**
+ * @author i-home
+ *
+ */
 public class ThreadSafeProxyFactory {
 
+	/**
+	 * threadsafe formatter implements this interface
+	 * if it can be locked from changes
+	 */
 	public interface Final {
+		/**
+		 * lock threadsafe formatter implementation from changes
+		 */
 		void lockSettings();
 	}
 
@@ -21,25 +32,36 @@ public class ThreadSafeProxyFactory {
 	private static final long INITIAL_VERSION = 1l;
 	private static final long LOCKED = -1l;
 
+	/**
+	 * @param <T> formatter implementation type
+	 * @param weak: java.text.Format subclass instance
+	 * @return threadsafe version of input formatter
+	 */
 	@SuppressWarnings("unchecked")
-	public static final <T extends Format> T safe(final T weakFormatter) {
+	public static final <T extends Format> T safe(final T weak) {
 		Enhancer factory = new Enhancer();
-		factory.setSuperclass(weakFormatter.getClass());
-		factory.setCallback(getCallback(weakFormatter, false));
+		factory.setSuperclass(weak.getClass());
+		factory.setCallback(getCallback(weak, false));
 		return (T) factory.create();
 	}
 
+	/**
+	 * @param <T> formatter implementation type
+	 * @param weak: java.text.Format subclass instance
+	 * @param locked: if true lock properties of constructed proxy from changes immediate
+	 * @return threadsafe version of input formatter with Final interface implementation
+	 */
 	@SuppressWarnings("unchecked")
-	public static final <T extends Format> T safe(final T weakFormatter, final boolean locked) {
+	public static final <T extends Format> T safe(final T weak, final boolean locked) {
 		Enhancer factory = new Enhancer();
-		factory.setSuperclass(weakFormatter.getClass());
-		factory.setCallback(getCallback(weakFormatter, locked));
+		factory.setSuperclass(weak.getClass());
+		factory.setCallback(getCallback(weak, locked));
 		factory.setInterfaces(new Class[] { Final.class });
 		return (T) factory.create();
 	}
 
 	@SuppressWarnings("unchecked")
-	protected static <T extends Format> MethodInterceptor getCallback(final T weakFormatter, final boolean locked) {
+	private static <T extends Format> MethodInterceptor getCallback(final T weak, final boolean locked) {
 		return new MethodInterceptor() {
 			private final ThreadLocal<T> insatnce = new ThreadLocal<T>();
 			private final ThreadLocal<Long> actual = new ThreadLocal<Long>();
@@ -55,7 +77,7 @@ public class ThreadSafeProxyFactory {
 					if (version.get() != LOCKED) {
 						if (version.incrementAndGet() < LOCKED)
 							version.set(INITIAL_VERSION);
-						return method.invoke(weakFormatter, args);
+						return method.invoke(weak, args);
 					} else {
 						return null;
 					}
@@ -63,17 +85,17 @@ public class ThreadSafeProxyFactory {
 					Long ver = actual.get();
 					if (ver != null && ver.longValue() == version.get()) {
 						if (insatnce.get() == null) {
-							T clone = (T) weakFormatter.clone();
+							T clone = (T) weak.clone();
 							insatnce.set(clone);
 						}
 					} else {
 						actual.set(version.get());
-						T clone = (T) weakFormatter.clone();
+						T clone = (T) weak.clone();
 						insatnce.set(clone);
 					}
 					return method.invoke(insatnce.get(), args);
 				}
-				return method.invoke(weakFormatter, args);
+				return method.invoke(weak, args);
 			}
 		};
 	}

@@ -25,7 +25,11 @@ import org.junit.jupiter.api.function.Executable;
 
 import net.jodah.concurrentunit.ConcurrentTestCase;
 
-class ThreadSafeProxyFactoryTest extends ConcurrentTestCase {
+/**
+ * @author i-home
+ *
+ */
+public class ThreadSafeProxyFactoryTest extends ConcurrentTestCase {
 
 	private static final int NUM_OF_THREADS = 10;
 	private static final String DD_MM_YYYY = "dd.MM.yyyy";
