@@ -10,7 +10,7 @@ create Formatter
 Factory->Formatter:for instantiation
 Formatter->Client:got *Formatter reference
 activate Client
-box #lightblue
+box "Another threads" #lightblue
 actor Second #lightgreen
 actor Third #lightgreen
 end box
@@ -27,10 +27,13 @@ activate Third
 ... ~~some possible delay~~ ...
 == Concurrent Access ==
 group Here we have troubles
-Client -[#red]> Formatter:use
+Client -[#red]> Formatter:parse()
 activate Formatter #ee6644
-Second -[#red]> Formatter:use
-Client -[#red]> Formatter:use
-Third -[#red]> Formatter:use
+Second -[#red]> Formatter:format()
+Client -[#red]> Formatter:format()
+Third -[#red]> Formatter:parse()
+Second -[#red]> Formatter:format()
+Client -[#red]> Formatter:parse()
+Third -[#red]> Formatter:parse()
 end
 @enduml
