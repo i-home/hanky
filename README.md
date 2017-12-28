@@ -2,7 +2,7 @@
 
 Hanky is an utility library for legacy projects which have variety range historical problems.
 
-[Maven site target execution result:](https://i-home.github.io/hanky/)
+[Maven site target execution result](https://i-home.github.io/hanky/)
 
 ### Motivation
 
